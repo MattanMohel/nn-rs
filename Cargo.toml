@@ -1,0 +1,11 @@
+[package]
+name = "nn-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+"num" = "*"
+"rand" = "*"
+"itertools" = "*"
+# "nalgebra" = { version="*", features=["serde-serialize"] }
+"matrixmultiply" = { version = "*", features=["threading"] }
