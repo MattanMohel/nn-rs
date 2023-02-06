@@ -91,8 +91,16 @@ impl Layer {
     /// Apply accumulated error
     #[inline]
     fn apply_err(&mut self, eta: f64) {
-        self.weights.add_assign(&self.w_grad.scale(eta));
-        self.biases.add_assign(&self.grad.scale(eta));
+        self.weights.add_assign(&self.w_grad_acc.scale(eta));
+        self.biases.add_assign(&self.grad_acc.scale(eta));
+    }
+
+    /// Clears propagation data
+    #[inline]
+    fn clear_prop(&mut self) {
+        self.sums.fill(0.0);
+        self.grad.fill(0.0);
+        self.w_grad.fill(0.0);
     }
 
     /// Clears accumulation data
@@ -184,6 +192,7 @@ impl<const L: usize> Net<L> {
                     // apply accumulated gradients
                     for layer in self.layers.iter_mut() {
                         layer.apply_err(eta);
+                        layer.clear_accum();
                     }
 
                     samples = 0;
@@ -217,6 +226,10 @@ impl<const L: usize> Net<L> {
     /// ## Note
     /// `Self` caches the propagated error 
     pub fn backward_pass(&mut self, x: &Mat, y: &Mat) {
+        for layer in self.layers.iter_mut() {
+            layer.clear_prop();
+        }
+
         // propagate input
         self.forward_pass(x);
         // evaluate output error

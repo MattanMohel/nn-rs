@@ -20,16 +20,9 @@ pub mod weight_init;
 fn main() {
     let data = Reader::new();
 
-    let mut net = Net::new([784, 450, 250, 10])
-        .epochs(10)
-        .shuffle(true)
-        .activation(Tanh)
-        .learn_rate(0.01)
-        .batch_size(32)
-        .weight_init(RangeNorm(-1., 1., 5.))
-        .build();
+    let mut net = Net::new([784, 450, 250, 10]).build();
 
-    net.train(&data.train_images()[0..500], &data.train_labels()[0..500]);
+    net.train(&data.train_images(), &data.train_labels());
 
     // for i in 0..10 {
     //     data.print_image(data::mnist::DataType::Train, i);
