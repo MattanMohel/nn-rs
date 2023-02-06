@@ -6,6 +6,4 @@ edition = "2021"
 [dependencies]
 "num" = "*"
 "rand" = "*"
-"itertools" = "*"
-# "nalgebra" = { version="*", features=["serde-serialize"] }
-"matrixmultiply" = { version = "*", features=["threading"] }
+"nalgebra" = { version="*", features=["serde-serialize", "rand", "matrixmultiply"] }

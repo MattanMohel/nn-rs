@@ -1,7 +1,7 @@
 use crate::{activation::Act, cost::Cost, network::Net, weight_init::WeightInit};
 
 /// Default learn rate
-const LEARN_RATE: f32 = 0.01;
+const LEARN_RATE: f64 = 0.01;
 /// Default batch size
 const BATCH_SIZE: usize = 32;
 /// Default train epochs count
@@ -20,7 +20,7 @@ const WEIGHT_INIT: WeightInit = WeightInit::RangeNorm(
 #[derive(Clone)]
 pub struct Params<const L: usize> {
     pub form: [usize; L],
-    pub learn_rate:  f32,
+    pub learn_rate:  f64,
     pub batch_size:  usize,
     pub epochs:      usize,
     pub weight_init: WeightInit,
@@ -57,7 +57,7 @@ impl<const L: usize> Params<L> {
     }
 
     /// Set model `learn_rate`
-    pub fn learn_rate(&mut self, learn_rate: f32) -> &mut Self {
+    pub fn learn_rate(&mut self, learn_rate: f64) -> &mut Self {
         self.learn_rate = learn_rate;
         self
     } 

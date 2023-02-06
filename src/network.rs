@@ -1,16 +1,14 @@
 use rand::seq::SliceRandom;
-use std::time::Instant;
-
+use std::{time::Instant, ops::{AddAssign}};
+use nalgebra::DMatrix;
 use crate::{
     activation::Act, 
     parameters::Params, 
     back_index::Side::Rev,
     cost::Cost,
-    matrix::{
-        MatBase,
-        Mat
-    },
 };
+
+pub type Mat = DMatrix<f64>;
 
 /// Represents a neuron layer
 struct Layer {
@@ -29,12 +27,12 @@ impl Layer {
     pub fn new<const L: usize>(params: &Params<L>, n_in: usize, n_out: usize) -> Self {
         Self {
             weights:    params.weight_init.init(n_in, n_out),
-            w_grad:     Mat::zeros((n_out, n_in)),
-            w_grad_acc: Mat::zeros((n_out, n_in)),
-            biases:     Mat::zeros((n_out, 1)),
-            grad:       Mat::zeros((n_out, 1)),
-            grad_acc:   Mat::zeros((n_out, 1)),
-            sums:       Mat::zeros((n_out, 1)),
+            w_grad:     Mat::zeros(n_out, n_in),
+            w_grad_acc: Mat::zeros(n_out, n_in),
+            biases:     Mat::zeros(n_out, 1),
+            grad:       Mat::zeros(n_out, 1),
+            grad_acc:   Mat::zeros(n_out, 1),
+            sums:       Mat::zeros(n_out, 1),
             act: params.act
         }
     }
@@ -59,8 +57,8 @@ impl Layer {
     /// - `ϵ ₗ₋₁ = W ₗᵀ x ϵ ₗ . σ'( Z ₗ₋₁ )`
     #[inline]
     fn backward_pass(&self, l_prev: &mut Layer) {
-        self.weights.transposed().mul_to(&self.grad, &mut l_prev.grad);
-        l_prev.grad.mul_assign(&l_prev.sums.map(|n| l_prev.act.deriv(n)));
+        self.weights.transpose().mul_to(&self.grad, &mut l_prev.grad);
+        l_prev.grad.component_mul_assign(&l_prev.sums.map(|n| l_prev.act.deriv(n)));
     }
 
     /// Computes weight error on layer `l`
@@ -69,7 +67,7 @@ impl Layer {
     /// - `ΔW ₗ₊₁ = ϵ ₗ₊₁ x A ₗ₋₁ᵀ`
     #[inline]
     fn weight_error(&mut self, a_prev: &Mat) {
-        self.grad.mul_to(&a_prev.transposed(), &mut self.w_grad);
+        self.grad.mul_to(&a_prev.transpose(), &mut self.w_grad);
     }
 
     /// Computes error on output layer `L`
@@ -79,8 +77,8 @@ impl Layer {
     #[inline]
     fn output_err(&mut self, cost: Cost, y: &Mat, a_out: &Mat) {
         y.sub_to(a_out, &mut self.grad);
-        self.grad.map_assign(|n| *n = cost.deriv(*n));
-        self.grad.mul_assign(&self.sums.map(|n| self.act.deriv(n)));
+        self.grad.apply(|n| *n = cost.deriv(*n));
+        self.grad.component_mul_assign(&self.sums.map(|n| self.act.deriv(n)));
     }
 
     /// Accumulate error
@@ -92,7 +90,7 @@ impl Layer {
 
     /// Apply accumulated error
     #[inline]
-    fn apply_err(&mut self, eta: f32) {
+    fn apply_err(&mut self, eta: f64) {
         self.weights.add_assign(&self.w_grad.scale(eta));
         self.biases.add_assign(&self.grad.scale(eta));
     }
@@ -116,7 +114,7 @@ impl<const L: usize> From<Params<L>> for Net<L> {
     fn from(params: Params<L>) -> Self {
         let acts = params.form
             .iter()
-            .map(|l| Mat::zeros((*l, 1)))
+            .map(|l| Mat::zeros(*l, 1))
             .collect();
 
         let layers = params.form
@@ -168,9 +166,9 @@ impl<const L: usize> Net<L> {
 
             let mut samples = 0;
 
-            for i in indices.iter() {
+            for i in 0..xs.len() {
                 // evaluate gradients
-                self.backward_pass(&xs[*i], &ys[*i]);
+                self.backward_pass(&xs[i], &ys[i]);
                 
                 // accumulate evaluated gradients
                 for layer in self.layers.iter_mut() {
@@ -181,7 +179,7 @@ impl<const L: usize> Net<L> {
 
                 if samples == self.params.batch_size || i + 1 == xs.len() {
                     // learn rate
-                    let eta = self.params.learn_rate / samples as f32;
+                    let eta = self.params.learn_rate / samples as f64;
                     
                     // apply accumulated gradients
                     for layer in self.layers.iter_mut() {
@@ -227,6 +225,7 @@ impl<const L: usize> Net<L> {
         for l in 0..L-1 {
             // evaluate layer weight error
             self.layers[Rev(l)].weight_error(&self.acts[Rev(l+1)]);
+
             // backward propagate layer gradients
             let split = Rev(l).to_index(self.layers.len());
             if let ([.., l], [l1, ..]) = self.layers.split_at_mut(split) {
@@ -241,17 +240,26 @@ impl<const L: usize> Net<L> {
     /// Abstract this method into trait
     /// - enforce size between `xs` and `ys`  
     /// - add variable accuracy function 
-    pub fn accuracy(&mut self, xs: &[Mat], ys: &[Mat]) -> f32 {
+    pub fn accuracy(&mut self, xs: &[Mat], ys: &[Mat]) -> f64 {
+        fn max(mat: &Mat) -> usize {
+            mat
+                .iter()
+                .enumerate()
+                .reduce(|max, n| if max.1 >= n.1 { max } else { n })
+                .unwrap()
+                .0
+        }
+
         let mut accurate = 0;
 
         for (x, y) in xs.iter().zip(ys.iter()) {
-            let out = self.predict(x).max_index();
+            let out = max(&self.predict(x));
 
-            if out == y.max_index() {
+            if out == max(y) {
                 accurate += 1;
             }
         }
 
-        accurate as f32 / xs.len() as f32
+        accurate as f64 / xs.len() as f64
     }
 }

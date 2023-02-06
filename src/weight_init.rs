@@ -1,17 +1,17 @@
-use crate::matrix::Mat;
+use crate::network::Mat;
 
 #[derive(Clone, Copy)]
 pub enum WeightInit {
-    Value(f32),
+    Value(f64),
     Sqrt,
     Range(
-        f32, // min, 
-        f32 // max
+        f64, // min, 
+        f64 // max
     ),
     RangeNorm(
-        f32, // min
-        f32, // max
-        f32, // normalize
+        f64, // min
+        f64, // max
+        f64, // normalize
     )
 }
 
@@ -19,13 +19,19 @@ impl WeightInit {
     /// Creates weights given nodes going `n_in` and `n_out`
     pub fn init(&self, n_in: usize, n_out: usize) -> Mat {
         match self {
-            WeightInit::Value(n) => Mat::filled((n_out, n_in), *n),
-            WeightInit::Sqrt => {
-                let bounds = 1.0 / (n_in as f32).sqrt();
-                Mat::random((n_out, n_in), -bounds, bounds).map(|n| n.sqrt())
+            WeightInit::Value(n) => {
+                Mat::from_element(n_out, n_in, *n)
             }
-            WeightInit::Range(min, max) => Mat::random((n_out, n_in), *min, *max),
-            WeightInit::RangeNorm(min, max, norm) => Mat::random((n_out, n_in), *min, *max).scale(1.0 / norm),
+            WeightInit::Sqrt => {
+                let bounds = 1.0 / (n_in as f64).sqrt();
+                Mat::new_random(n_out, n_in).map(|n| bounds * n)
+            }
+            WeightInit::Range(min, max) => {
+                Mat::new_random(n_out, n_in).map(|n| (max - min) * n + min)
+            }
+            WeightInit::RangeNorm(min, max, norm) => {
+                Mat::new_random(n_out, n_in).map(|n| ((max - min) * n + min) / norm)
+            }
         }
     }
 }
