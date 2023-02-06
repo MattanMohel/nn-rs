@@ -1,17 +1,19 @@
+use serde::{Serialize, Deserialize};
+
 use crate::network::Mat;
 
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum WeightInit {
-    Value(f64),
+    Value(f32),
     Sqrt,
     Range(
-        f64, // min, 
-        f64 // max
+        f32, // min, 
+        f32 // max
     ),
     RangeNorm(
-        f64, // min
-        f64, // max
-        f64, // normalize
+        f32, // min
+        f32, // max
+        f32, // normalize
     )
 }
 
@@ -23,7 +25,7 @@ impl WeightInit {
                 Mat::from_element(n_out, n_in, *n)
             }
             WeightInit::Sqrt => {
-                let bounds = 1.0 / (n_in as f64).sqrt();
+                let bounds = 1.0 / (n_in as f32).sqrt();
                 Mat::new_random(n_out, n_in).map(|n| bounds * n)
             }
             WeightInit::Range(min, max) => {

@@ -6,4 +6,8 @@ edition = "2021"
 [dependencies]
 "num" = "*"
 "rand" = "*"
+"nannou" = "*"
 "nalgebra" = { version="*", features=["serde-serialize", "rand", "matrixmultiply"] }
+"serde" = { deatures=["derive"], version = "*" }
+"serde_derive" = "*"
+"serde_json" = "*"

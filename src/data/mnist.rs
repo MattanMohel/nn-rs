@@ -129,9 +129,9 @@ impl Reader {
         image_bytes
             .chunks(BYTES_PER_IMAGE)
             .map(|image| {
-                let buf: Vec<f64> = image
+                let buf: Vec<f32> = image
                     .iter()
-                    .map(|n| *n as f64 / 255.0)
+                    .map(|n| *n as f32 / 255.0)
                     .collect();
 
                 Mat::from_vec(BYTES_PER_IMAGE, 1, buf)

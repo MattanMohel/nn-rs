@@ -1,5 +1,6 @@
 use rand::seq::SliceRandom;
-use std::{time::Instant, ops::{AddAssign}};
+use serde::{Serialize, Deserialize};
+use std::{time::Instant, ops::{AddAssign}, fs::File};
 use nalgebra::DMatrix;
 use crate::{
     activation::Act, 
@@ -8,9 +9,10 @@ use crate::{
     cost::Cost,
 };
 
-pub type Mat = DMatrix<f64>;
+pub type Mat = DMatrix<f32>;
 
 /// Represents a neuron layer
+#[derive(Serialize, Deserialize)]
 struct Layer {
     weights:    Mat,
     w_grad:     Mat,
@@ -90,7 +92,7 @@ impl Layer {
 
     /// Apply accumulated error
     #[inline]
-    fn apply_err(&mut self, eta: f64) {
+    fn apply_err(&mut self, eta: f32) {
         self.weights.add_assign(&self.w_grad_acc.scale(eta));
         self.biases.add_assign(&self.grad_acc.scale(eta));
     }
@@ -112,6 +114,7 @@ impl Layer {
 }
 
 /// Neural Network
+#[derive(Serialize, Deserialize)]
 pub struct Net<const L: usize> {
     params: Params<L>,
     layers: Vec<Layer>,
@@ -143,6 +146,36 @@ impl<const L: usize> Net<L> {
     pub fn new(form: [usize; L]) -> Params<L> {
         Params::from(form)
     }
+
+    pub fn save(&self) {
+        let net = serde_json::to_string(&self)
+            .expect("could not serialize model!");
+
+        let work_dir = std::env::current_dir().unwrap();
+
+        // absolute path
+        let abs_path = work_dir.join(&self.params.save_path);
+
+        File::create(&abs_path)
+            .expect("couldn't create model save file!");
+
+        std::fs::write(&abs_path, net)
+            .expect("couldn't write model to file!");
+    }
+
+    pub fn from_file(path: &str) -> Self {
+        let work_dir = std::env::current_dir().unwrap();
+
+        // absolute path
+        let abs_path = work_dir.join(&path);
+
+        let src = std::fs::read_to_string(&abs_path)
+            .expect("couldn't read model file!");
+        
+        serde_json::from_str(&src)
+            .expect("couldn't deserialize model!")
+    }
+
 
     /// Forward propagates and returns a model prediction
     pub fn predict(&mut self, x: &Mat) -> &Mat {
@@ -187,7 +220,7 @@ impl<const L: usize> Net<L> {
 
                 if samples == self.params.batch_size || i + 1 == xs.len() {
                     // learn rate
-                    let eta = self.params.learn_rate / samples as f64;
+                    let eta = self.params.learn_rate / samples as f32;
                     
                     // apply accumulated gradients
                     for layer in self.layers.iter_mut() {
@@ -253,7 +286,7 @@ impl<const L: usize> Net<L> {
     /// Abstract this method into trait
     /// - enforce size between `xs` and `ys`  
     /// - add variable accuracy function 
-    pub fn accuracy(&mut self, xs: &[Mat], ys: &[Mat]) -> f64 {
+    pub fn accuracy(&mut self, xs: &[Mat], ys: &[Mat]) -> f32 {
         fn max(mat: &Mat) -> usize {
             mat
                 .iter()
@@ -273,6 +306,6 @@ impl<const L: usize> Net<L> {
             }
         }
 
-        accurate as f64 / xs.len() as f64
+        accurate as f32 / xs.len() as f32
     }
 }

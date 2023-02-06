@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{activation::Act, cost::Cost, network::Net, weight_init::WeightInit};
 
 /// Default learn rate
-const LEARN_RATE: f64 = 0.01;
+const LEARN_RATE: f32 = 0.01;
 /// Default batch size
 const BATCH_SIZE: usize = 32;
 /// Default train epochs count
@@ -16,11 +18,12 @@ const WEIGHT_INIT: WeightInit = WeightInit::RangeNorm(
      1.0, // max
      5.0  // normalizer
 );
+const SAVE_PATH: &str = "src/models/model";
 
-#[derive(Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Params<const L: usize> {
-    pub form: [usize; L],
-    pub learn_rate:  f64,
+    pub form: Vec<usize>,
+    pub learn_rate:  f32,
     pub batch_size:  usize,
     pub epochs:      usize,
     pub weight_init: WeightInit,
@@ -28,12 +31,13 @@ pub struct Params<const L: usize> {
     pub cost:        Cost,
     pub shuffle:     bool,
     pub verbose:     bool,
+    pub save_path:   String
 }
 
 impl<const L: usize> From<[usize; L]> for Params<L> {
     fn from(form: [usize; L]) -> Self {
         Self {
-            form,
+            form: form.to_vec(),
             learn_rate: LEARN_RATE,
             batch_size: BATCH_SIZE,
             epochs: EPOCHS,
@@ -41,7 +45,8 @@ impl<const L: usize> From<[usize; L]> for Params<L> {
             act: ACTIVATION,
             cost: COST,
             shuffle: true,
-            verbose: true
+            verbose: true,
+            save_path: SAVE_PATH.to_string()
         }    
     }
 }
@@ -57,7 +62,7 @@ impl<const L: usize> Params<L> {
     }
 
     /// Set model `learn_rate`
-    pub fn learn_rate(&mut self, learn_rate: f64) -> &mut Self {
+    pub fn learn_rate(&mut self, learn_rate: f32) -> &mut Self {
         self.learn_rate = learn_rate;
         self
     } 
@@ -101,6 +106,12 @@ impl<const L: usize> Params<L> {
     /// Set whether model prints stats per epoch
     pub fn verbose(&mut self, verbose: bool) -> &mut Self {
         self.verbose = verbose;
+        self
+    }
+
+    /// Set model `save_path`
+    pub fn save_path(&mut self, save_path: &str) -> &mut Self {
+        self.save_path = save_path.to_string();
         self
     }
 }
