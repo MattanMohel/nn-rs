@@ -1,4 +1,4 @@
-# nn-rs
+# nn-rs (neural network)
 
 A project for exploring perceptron neural network in Rust
 
