@@ -1,21 +1,18 @@
 use nannou::prelude::*;
-use num::integer::Roots;
-
-use crate::network::{ Net, Mat };
+use crate::data::dataset::Dataset;
+use crate::data::mnist::Reader;
+use crate::network::Net;
+use crate::matrix::{
+    Mat, 
+    MatBase
+};
 
 const WIDTH:  u32 = 28;
 const HEIGHT: u32 = 28;
 const BUFFER: u32 = 10;
 const PX: u32 = 28;
-
-const COL: u32 = 784;
-const ROW: u32 = 784;
-const COL_P: u32 = 28;
-const ROW_P: u32 = 28;
 const DRAW_RADIUS: isize = 2;
-const DIM_P: u32 = COL_P*ROW_P;
-
-const MODEL_PATH: &str = "src/models/model";
+const MODEL_PATH: &str = "src/models/test";
 
 pub fn run_sketch() {
     nannou::app(model)
@@ -41,8 +38,6 @@ fn to_pixel_xy(x: f32, y: f32) -> (f32, f32) {
     let y_p = (784.0 / 2.0 + y) / 28.0;
     let y_p = y_p.floor();
 
-    println!("{}, {}", x_p, y_p);
-
     (x_p, y_p)
 }
 
@@ -64,7 +59,7 @@ fn model(app: &App) -> Model {
         r_mouse_pressed: false,
         draw_radius: DRAW_RADIUS,
         net: Net::from_file(MODEL_PATH),
-        out: Mat::zeros(10, 1)
+        out: Mat::zeros((10, 1))
     }
 }
 
@@ -89,11 +84,11 @@ fn update(app: &App, model: &mut Model, _update: Update) {
                 continue;
             }
 
-            let cell = model.buf.get_mut((28.0*(y + i) + (x + j)) as usize);
+            let cell = model.buf.get_mut((784.0-28.0*(y + i) + (x + j)) as usize);
 
             if let Some(pixel) = cell {
                 if model.l_mouse_pressed {
-                    *pixel += 1.0 / dist.powi(2) as f32;
+                    *pixel += (1.0 / dist.powi(2) as f32).clamp(0.0, 1.0);
                 }
                 else {
                     *pixel = 0.0;
@@ -102,23 +97,35 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         }
     }
 
-    let buf = model.buf.map(|n| n as f32);
-    let buf = Mat::from_vec(784, 1, buf.to_vec());
-    model.out = model.net.predict(&buf).clone();
+    let vec = model.buf.map(|n| n as f32 / 5.0);
+    let mat = Mat::from_vec((784, 1), vec.to_vec());
+    model.out = model.net.predict(&mat);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
     let draw = app.draw();     
     draw.background().color(WHITESMOKE);
 
-    draw.text(&model.out.to_string()).color(BLACK).font_size(25).x_y(400., 200. - 0 as f32 * 30.);
-    // for i in 0..10 {
-    //     let s = format!("{} - {}%", i, model.out[(i, 0)]);
-    // }
-    
+    let mut out: Vec<_> = model.out
+        .data()
+        .iter()
+        .enumerate()
+        .collect();
+
+    out.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
+
+    for (i, (d, p)) in out.iter().enumerate() {
+        let s = format!("\"{}\": {}%", d, p);
+        draw
+            .text(&s)
+            .color(BLACK)
+            .font_size(25)
+            .x_y(400., 150. - i as f32 * 50.);
+    }
+
     for (i, p) in model.buf.iter().enumerate() {
         let x = (i % 28) as f32;
-        let y = (i / 28) as f32;
+        let y = 28.0 - (i / 28) as f32;
 
         if *p > 0.0 {
             let r = Rect::from_w_h(28.0, 28.0)
@@ -163,20 +170,9 @@ fn key_press(_: &App, model: &mut Model, key: Key) {
         }
         Key::P => {
             let buf = model.buf.map(|n| n as f32);
-            let buf = Mat::from_vec(784, 1, buf.to_vec());
+            let buf = Mat::from_vec((784, 1), buf.to_vec());
 
-            let digit = model.net.predict(&buf);
-
-            let mut m = -100.;
-            let mut i = 0;
-            for j in 0..10 {
-                if m < digit[j] {
-                    m = digit[j];
-                    i = j
-                }
-            }
-    
-            for (i, byte) in model.buf.iter().rev().enumerate() {
+            for (i, byte) in buf.data().iter().enumerate() {
                 if *byte > 0.8 {
                     print!("■ ")
                 } else if *byte > 0.4 {
@@ -192,7 +188,9 @@ fn key_press(_: &App, model: &mut Model, key: Key) {
                 } 
             }
 
-            println!("the digit is {} with {} certainty", i, m);
+            let digit = model.net.predict(&buf).max_index().0;
+
+            println!("predicted digit: {}", digit);
         }
         _ => ()
     }

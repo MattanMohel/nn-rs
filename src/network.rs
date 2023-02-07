@@ -1,15 +1,13 @@
 use rand::seq::SliceRandom;
 use serde::{Serialize, Deserialize};
 use std::{time::Instant, ops::{AddAssign}, fs::File};
-use nalgebra::DMatrix;
+use crate::matrix::{Mat, MatBase};
 use crate::{
     activation::Act, 
     parameters::Params, 
     back_index::Side::Rev,
     cost::Cost,
 };
-
-pub type Mat = DMatrix<f32>;
 
 /// Represents a neuron layer
 #[derive(Serialize, Deserialize)]
@@ -29,12 +27,12 @@ impl Layer {
     pub fn new<const L: usize>(params: &Params<L>, n_in: usize, n_out: usize) -> Self {
         Self {
             weights:    params.weight_init.init(n_in, n_out),
-            w_grad:     Mat::zeros(n_out, n_in),
-            w_grad_acc: Mat::zeros(n_out, n_in),
-            biases:     Mat::zeros(n_out, 1),
-            grad:       Mat::zeros(n_out, 1),
-            grad_acc:   Mat::zeros(n_out, 1),
-            sums:       Mat::zeros(n_out, 1),
+            w_grad:     Mat::zeros((n_out, n_in)),
+            w_grad_acc: Mat::zeros((n_out, n_in)),
+            biases:     Mat::zeros((n_out, 1)),
+            grad:       Mat::zeros((n_out, 1)),
+            grad_acc:   Mat::zeros((n_out, 1)),
+            sums:       Mat::zeros((n_out, 1)),
             act: params.act
         }
     }
@@ -59,8 +57,8 @@ impl Layer {
     /// - `ϵ ₗ₋₁ = W ₗᵀ x ϵ ₗ . σ'( Z ₗ₋₁ )`
     #[inline]
     fn backward_pass(&self, l_prev: &mut Layer) {
-        self.weights.transpose().mul_to(&self.grad, &mut l_prev.grad);
-        l_prev.grad.component_mul_assign(&l_prev.sums.map(|n| l_prev.act.deriv(n)));
+        self.weights.transposed().mul_to(&self.grad, &mut l_prev.grad);
+        l_prev.grad.elem_mul_assign(&l_prev.sums.map(|n| l_prev.act.deriv(n)));
     }
 
     /// Computes weight error on layer `l`
@@ -69,7 +67,7 @@ impl Layer {
     /// - `ΔW ₗ₊₁ = ϵ ₗ₊₁ x A ₗ₋₁ᵀ`
     #[inline]
     fn weight_error(&mut self, a_prev: &Mat) {
-        self.grad.mul_to(&a_prev.transpose(), &mut self.w_grad);
+        self.grad.mul_to(&a_prev.transposed(), &mut self.w_grad);
     }
 
     /// Computes error on output layer `L`
@@ -79,8 +77,8 @@ impl Layer {
     #[inline]
     fn output_err(&mut self, cost: Cost, y: &Mat, a_out: &Mat) {
         y.sub_to(a_out, &mut self.grad);
-        self.grad.apply(|n| *n = cost.deriv(*n));
-        self.grad.component_mul_assign(&self.sums.map(|n| self.act.deriv(n)));
+        self.grad.map_assign(|n| *n = cost.deriv(*n));
+        self.grad.elem_mul_assign(&self.sums.map(|n| self.act.deriv(n)));
     }
 
     /// Accumulate error
@@ -125,7 +123,7 @@ impl<const L: usize> From<Params<L>> for Net<L> {
     fn from(params: Params<L>) -> Self {
         let acts = params.form
             .iter()
-            .map(|l| Mat::zeros(*l, 1))
+            .map(|l| Mat::zeros((*l, 1)))
             .collect();
 
         let layers = params.form
@@ -178,9 +176,9 @@ impl<const L: usize> Net<L> {
 
 
     /// Forward propagates and returns a model prediction
-    pub fn predict(&mut self, x: &Mat) -> &Mat {
+    pub fn predict(&mut self, x: &Mat) -> Mat {
         self.forward_pass(x);
-        &self.acts[Rev(0)]
+        self.acts[Rev(0)].clone()
     }
 
     /// Trains the model on inputs `xs` and labels `ys`
@@ -246,6 +244,10 @@ impl<const L: usize> Net<L> {
     /// ## Note
     /// `Self` caches the propagated activations
     pub fn forward_pass(&mut self, x: &Mat) {
+        for layer in self.layers.iter_mut() {
+            layer.clear_prop();
+        }
+
         self.acts[0] = x.clone();
 
         for l in 0..L-1 {
@@ -287,21 +289,12 @@ impl<const L: usize> Net<L> {
     /// - enforce size between `xs` and `ys`  
     /// - add variable accuracy function 
     pub fn accuracy(&mut self, (xs, ys): (&[Mat], &[Mat])) -> f32 {
-        fn max(mat: &Mat) -> usize {
-            mat
-                .iter()
-                .enumerate()
-                .reduce(|max, n| if max.1 >= n.1 { max } else { n })
-                .unwrap()
-                .0
-        }
-
         let mut accurate = 0;
 
         for (x, y) in xs.iter().zip(ys.iter()) {
-            let out = max(&self.predict(x));
+            let index = self.predict(x).max_index();
 
-            if out == max(y) {
+            if index == y.max_index() {
                 accurate += 1;
             }
         }

@@ -1,4 +1,4 @@
-use crate::network::Mat;
+use crate::matrix::Mat;
 
 /// A wrapper for a dataset
 pub trait Dataset {

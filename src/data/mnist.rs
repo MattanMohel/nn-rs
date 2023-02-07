@@ -1,7 +1,7 @@
 use std::{path::PathBuf, fs};
 use serde::{Serialize, Deserialize};
 
-use crate::network::Mat;
+use crate::matrix::{Mat, MatBase};
 
 use super::dataset::Dataset;
 // use crate::matrix::{
@@ -47,7 +47,7 @@ const BYTES_PER_IMAGE: usize =   784;
 const BYTES_PER_AXIS: usize =     28;
 
 fn one_hot(hot: usize) -> Mat {
-    let mut mat = Mat::zeros(10, 1);
+    let mut mat = Mat::zeros((10, 1));
     mat[(hot, 0)] = 1.0;
     mat
 }
@@ -140,7 +140,7 @@ impl Reader {
                     .map(|n| *n as f32 / 255.0)
                     .collect();
 
-                Mat::from_vec(BYTES_PER_IMAGE, 1, buf)
+                Mat::from_vec((BYTES_PER_IMAGE, 1), buf)
             })
             .collect() 
     }
@@ -153,7 +153,7 @@ impl Reader {
             DataType::Test  => images = &self.test_images
         }
 
-        for (i, byte) in images[index].iter().enumerate() {
+        for (i, byte) in images[index].data().iter().enumerate() {
             if *byte > 0.8 {
                 print!("■ ")
             } else if *byte > 0.4 {

@@ -2,8 +2,9 @@ use std::ops::{Index, IndexMut};
 
 use matrixmultiply::sgemm;
 use rand::{Rng, distributions::Uniform, prelude::Distribution};
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Mat {
     buf: Vec<f32>,
     row: usize,
@@ -235,7 +236,7 @@ impl Mat {
         }
     }
 
-    pub fn mul_assign<M: MatBase>(&mut self, rhs: &M) {
+    pub fn elem_mul_assign<M: MatBase>(&mut self, rhs: &M) {
         assert_eq!(self.shape(), rhs.shape());
 
         for (i, n) in self.buf.iter_mut().enumerate() {

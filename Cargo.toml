@@ -7,8 +7,7 @@ edition = "2021"
 "num" = "*"
 "rand" = "*"
 "nannou" = "*"
-"matrixmultiply" = { version = "*", features=["threading"] }
-"nalgebra" = { version="*", features=["serde-serialize", "rand", "matrixmultiply"] }
+"matrixmultiply" =  { version = "*", features=["threading"] }
 "serde" = { deatures=["derive"], version = "*" }
 "serde_derive" = "*"
 "serde_json" = "*"
