@@ -1,8 +1,16 @@
-use std::ops::{Index, IndexMut};
-
+use std::ops::{
+    Index, 
+    IndexMut
+};
+use rand::{
+    distributions::Uniform, 
+    prelude::Distribution
+};
+use serde::{
+    Serialize, 
+    Deserialize
+};
 use matrixmultiply::sgemm;
-use rand::{Rng, distributions::Uniform, prelude::Distribution};
-use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Mat {
@@ -151,7 +159,15 @@ impl Mat {
         }
     }
 
-    pub fn from_arr<const R: usize, const C: usize>(arr: [[f32; C]; R]) -> Self {
+    pub fn from_arr<const R: usize>(arr: [f32; R]) -> Self {
+        Self {
+            buf: arr.to_vec(),
+            row: R,
+            col: 1
+        }
+    }
+
+    pub fn from_arr_2d<const R: usize, const C: usize>(arr: [[f32; C]; R]) -> Self {
         let buf = arr
             .iter()
             .copied()
@@ -162,6 +178,14 @@ impl Mat {
             buf,
             row: R,
             col: C
+        }
+    }
+
+    pub fn from_elem(elem: f32) -> Self {
+        Self {
+            buf: vec![elem],
+            row: 1,
+            col: 1
         }
     }
 
@@ -233,6 +257,12 @@ impl Mat {
 
         for (i, n) in self.buf.iter_mut().enumerate() {
             *n -= rhs[rhs.to_index(i)];
+        }
+    }
+
+    pub fn scale_assign(&mut self, scalar: f32) {
+        for n in self.buf.iter_mut() {
+            *n *= scalar;
         }
     }
 

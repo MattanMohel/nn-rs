@@ -58,7 +58,7 @@ fn model(app: &App) -> Model {
         l_mouse_pressed: false,
         r_mouse_pressed: false,
         draw_radius: DRAW_RADIUS,
-        net: Net::from_file(MODEL_PATH),
+        net: Net::from_file(MODEL_PATH).unwrap(),
         out: Mat::zeros((10, 1))
     }
 }
@@ -115,7 +115,7 @@ fn view(app: &App, model: &Model, frame: Frame) {
     out.sort_by(|a, b| b.1.partial_cmp(a.1).unwrap());
 
     for (i, (d, p)) in out.iter().enumerate() {
-        let s = format!("\"{}\": {}%", d, p);
+        let s = format!("\"{}\": {:.2}%", d, *p * 100.);
         draw
             .text(&s)
             .color(BLACK)

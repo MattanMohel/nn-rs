@@ -1,6 +1,6 @@
 use rand::seq::SliceRandom;
 use serde::{Serialize, Deserialize};
-use std::{time::Instant, ops::{AddAssign}, fs::File};
+use std::{time::Instant, ops::{AddAssign}, fs::File, io::Write, io::Error, path::PathBuf};
 use crate::matrix::{Mat, MatBase};
 use crate::{
     activation::Act, 
@@ -15,6 +15,7 @@ struct Layer {
     weights:    Mat,
     w_grad:     Mat,
     w_grad_acc: Mat,
+    w_momentum: Mat,
     biases:     Mat,
     grad:       Mat,
     grad_acc:   Mat,
@@ -26,9 +27,10 @@ impl Layer {
     /// Creates `Layer` given nodes going `n_in` and `n_out`
     pub fn new<const L: usize>(params: &Params<L>, n_in: usize, n_out: usize) -> Self {
         Self {
-            weights:    params.weight_init.init(n_in, n_out),
+            weights:    params.weight.init(n_in, n_out),
             w_grad:     Mat::zeros((n_out, n_in)),
             w_grad_acc: Mat::zeros((n_out, n_in)),
+            w_momentum: Mat::zeros((n_out, n_in)),
             biases:     Mat::zeros((n_out, 1)),
             grad:       Mat::zeros((n_out, 1)),
             grad_acc:   Mat::zeros((n_out, 1)),
@@ -90,8 +92,13 @@ impl Layer {
 
     /// Apply accumulated error
     #[inline]
-    fn apply_err(&mut self, eta: f32) {
+    fn apply_err(&mut self, momentum: f32, eta: f32) {
+        self.w_momentum.scale_assign(momentum);
+        self.w_momentum.add_assign(&self.w_grad_acc.scale(eta));
+
         self.weights.add_assign(&self.w_grad_acc.scale(eta));
+        self.weights.add_assign(&self.w_momentum);
+
         self.biases.add_assign(&self.grad_acc.scale(eta));
     }
 
@@ -145,35 +152,21 @@ impl<const L: usize> Net<L> {
         Params::from(form)
     }
 
-    pub fn save(&self) {
-        let net = serde_json::to_string(&self)
-            .expect("could not serialize model!");
-
-        let work_dir = std::env::current_dir().unwrap();
-
-        // absolute path
-        let abs_path = work_dir.join(&self.params.save_path);
-
-        File::create(&abs_path)
-            .expect("couldn't create model save file!");
-
-        std::fs::write(&abs_path, net)
-            .expect("couldn't write model to file!");
+    /// Saves the current model to `path`
+    pub fn save(&self) -> Result<(), Error> {
+        let json = serde_json::to_string(&self)?;
+        let path = std::env::current_dir()?.join(&self.params.save_path);
+        File::create(&path)?;
+        std::fs::write(&path, json)?;
+        Ok(())
     }
 
-    pub fn from_file(path: &str) -> Self {
-        let work_dir = std::env::current_dir().unwrap();
-
-        // absolute path
-        let abs_path = work_dir.join(&path);
-
-        let src = std::fs::read_to_string(&abs_path)
-            .expect("couldn't read model file!");
-        
-        serde_json::from_str(&src)
-            .expect("couldn't deserialize model!")
+    /// Reads a model from `path`
+    pub fn from_file(path: &str) -> Result<Self, Error> {
+        let path = std::env::current_dir()?.join(&path);
+        let src = std::fs::read_to_string(&path)?;
+        serde_json::from_str(&src).map_err(|err| err.into())
     }
-
 
     /// Forward propagates and returns a model prediction
     pub fn predict(&mut self, x: &Mat) -> Mat {
@@ -222,7 +215,7 @@ impl<const L: usize> Net<L> {
                     
                     // apply accumulated gradients
                     for layer in self.layers.iter_mut() {
-                        layer.apply_err(eta);
+                        layer.apply_err(self.params.momentum, eta);
                         layer.clear_accum();
                     }
 

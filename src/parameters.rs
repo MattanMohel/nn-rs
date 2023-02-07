@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{activation::Act, cost::Cost, network::Net, weight_init::WeightInit};
+use crate::{activation::Act, cost::Cost, network::Net, weight_init::Weight};
 
 /// Default learn rate
 const LEARN_RATE: f32 = 0.01;
+/// Default momentum rate
+const MOMENTUM: f32 = 0.80;
 /// Default batch size
 const BATCH_SIZE: usize = 32;
 /// Default train epochs count
@@ -13,25 +15,23 @@ const ACTIVATION: Act = Act::Tanh;
 /// Default cost function
 const COST: Cost = Cost::MSE;
 /// Default weight initialization method
-const WEIGHT_INIT: WeightInit = WeightInit::RangeNorm(
-    -1.0, // min
-     1.0, // max
-     5.0  // normalizer
-);
+const WEIGHT: Weight = Weight::Range(-0.2, 0.2);
+/// Default model save path
 const SAVE_PATH: &str = "src/models/model";
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Params<const L: usize> {
     pub form: Vec<usize>,
-    pub learn_rate:  f32,
-    pub batch_size:  usize,
-    pub epochs:      usize,
-    pub weight_init: WeightInit,
-    pub act:         Act,
-    pub cost:        Cost,
-    pub shuffle:     bool,
-    pub verbose:     bool,
-    pub save_path:   String
+    pub learn_rate: f32,
+    pub momentum: f32,
+    pub batch_size: usize,
+    pub epochs:  usize,
+    pub weight: Weight,
+    pub act:       Act,
+    pub cost:      Cost,
+    pub shuffle:   bool,
+    pub verbose:   bool,
+    pub save_path: String
 }
 
 impl<const L: usize> From<[usize; L]> for Params<L> {
@@ -39,9 +39,10 @@ impl<const L: usize> From<[usize; L]> for Params<L> {
         Self {
             form: form.to_vec(),
             learn_rate: LEARN_RATE,
+            momentum: MOMENTUM,
             batch_size: BATCH_SIZE,
             epochs: EPOCHS,
-            weight_init: WEIGHT_INIT,
+            weight: WEIGHT,
             act: ACTIVATION,
             cost: COST,
             shuffle: true,
@@ -67,6 +68,12 @@ impl<const L: usize> Params<L> {
         self
     } 
 
+    /// Set model `momentum` rate
+    pub fn momentum(&mut self, momentum: f32) -> &mut Self {
+        self.momentum = momentum;
+        self
+    } 
+
     /// Set model `batch_size`
     pub fn batch_size(&mut self, batch_size: usize) -> &mut Self {
         self.batch_size = batch_size;
@@ -80,8 +87,8 @@ impl<const L: usize> Params<L> {
     }
 
     /// Set model `weight_init` method
-    pub fn weight_init(&mut self, weight_init: WeightInit) -> &mut Self {
-        self.weight_init = weight_init;
+    pub fn weight(&mut self, weight_init: Weight) -> &mut Self {
+        self.weight = weight_init;
         self
     }
 
