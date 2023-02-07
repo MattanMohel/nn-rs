@@ -1,5 +1,9 @@
 use std::{path::PathBuf, fs};
+use serde::{Serialize, Deserialize};
+
 use crate::network::Mat;
+
+use super::dataset::Dataset;
 // use crate::matrix::{
 //     MatBase,
 //     Mat
@@ -54,7 +58,7 @@ pub enum DataType {
 }
 
 /// MNIST dataset reader
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Reader {
     train_images: Vec<Mat>,
     train_labels: Vec<Mat>,   
@@ -62,8 +66,8 @@ pub struct Reader {
     test_labels:  Vec<Mat>
 }
 
-impl Reader {
-    pub fn new() -> Self {
+impl Dataset for Reader {
+    fn load_dataset() -> Self {
         let work_dir = std::env::current_dir().unwrap();
 
         Self { 
@@ -74,22 +78,24 @@ impl Reader {
         }
     }
 
-    pub fn train_images(&self) -> &Vec<Mat> {
-        &self.train_images
+    fn train_len(&self) -> usize {
+        self.train_labels.len()
     }
 
-    pub fn train_labels(&self) -> &Vec<Mat> {
-        &self.train_labels
+    fn test_len(&self) -> usize {
+        self.test_labels.len()
     }
 
-    pub fn test_images(&self) -> &Vec<Mat> {
-        &self.test_images
+    fn train_set(&self) -> (&[Mat], &[Mat]) {
+        (&self.train_images, &self.train_labels)
     }
 
-    pub fn test_labels(&self) -> &Vec<Mat> {
-        &self.test_labels
+    fn test_set(&self) -> (&[Mat], &[Mat]) {
+        (&self.test_images, &self.test_labels)
     }
+}
 
+impl Reader {
     fn read_labels(data_type: DataType, work_dir: &PathBuf) -> Vec<Mat> {
         let path = match data_type {
             DataType::Train => TRAIN_LABELS_PATH,

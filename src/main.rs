@@ -1,11 +1,7 @@
-use std::ops::Mul;
-
-use activation::Act::*;
-use draw::run_sketch;
-use nalgebra::{DMatrix, Matrix2x3, Matrix3x1};
+use data::dataset::Dataset;
 // use matrix::MatBase;
-use network::{Net, Mat};
-use crate::{data::mnist::{Reader, DataType::Test}, weight_init::WeightInit::*};
+use network::Net;
+use crate::data::mnist::Reader;
 
 pub mod activation;
 pub mod cost;
@@ -16,16 +12,25 @@ pub mod data;
 pub mod back_index;
 pub mod weight_init;
 pub mod draw;
+pub mod matrix;
 
-// TODO: create a "DataReader" trait that feeds into "Net"
+// TODO: add interface for fixing model save path if ot fails
+// so you don't lose data
 
 fn main() {
-    let data = Reader::new();
+    let data = Reader::load_dataset();
 
-    // let mut net = Net::new([784, 450, 250, 10]).build();
+    let mut net = Net::new([784, 450, 250, 10])
+        .save_path("models/test")
+        .build();
 
-    // net.train(&data.train_images(), &data.train_labels());
-    // net.save();
+    net.train(data.train_set());
+    net.save();
 
-    run_sketch();
+    net.accuracy(data.test_set());
+
+    // let mut net = Net::<4>::from_file("models/model1");
+
+
+    // run_sketch();
 }

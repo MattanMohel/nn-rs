@@ -184,7 +184,7 @@ impl<const L: usize> Net<L> {
     }
 
     /// Trains the model on inputs `xs` and labels `ys`
-    pub fn train(&mut self, xs: &[Mat], ys: &[Mat]) {
+    pub fn train(&mut self, (xs, ys): (&[Mat], &[Mat])) {
         assert_eq!(xs.len(), ys.len());
 
         // index map for shuffling the immutable data
@@ -235,7 +235,7 @@ impl<const L: usize> Net<L> {
             if self.params.verbose {
                 let elapsed = timer.elapsed();
                 println!("finished in {}s", elapsed.as_secs());
-                let accuracy = self.accuracy(xs, ys);
+                let accuracy = self.accuracy((xs, ys));
                 println!("accuracy: {}", accuracy);
             }
         }
@@ -286,7 +286,7 @@ impl<const L: usize> Net<L> {
     /// Abstract this method into trait
     /// - enforce size between `xs` and `ys`  
     /// - add variable accuracy function 
-    pub fn accuracy(&mut self, xs: &[Mat], ys: &[Mat]) -> f32 {
+    pub fn accuracy(&mut self, (xs, ys): (&[Mat], &[Mat])) -> f32 {
         fn max(mat: &Mat) -> usize {
             mat
                 .iter()
