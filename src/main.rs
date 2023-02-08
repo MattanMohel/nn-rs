@@ -27,7 +27,7 @@ fn main() {
 fn train_mnist() {
     let data = Reader::load_dataset();
 
-    let mut net = Net::new([784, 450, 250, 10])
+    let mut net = Net::new([784, 200, 80, 10])
         .save_path("src/models/test")
         .build();
 
