@@ -6,6 +6,10 @@ A project for exploring perceptron neural network in Rust
 
 The network aims to identify 'handwritten' digits from ```0-9``` (hopefully accurately) using the MNIST dataset
 
+### Drawing 
+
+The library includes a drawing app designed to predict hand-written digits using the MNIST dataset. The current model achieves a 95% accuracy on both the training and testing MNIST dataset
+
 ### Goals
 
 - [x] get matrix library up and running
@@ -14,8 +18,7 @@ The network aims to identify 'handwritten' digits from ```0-9``` (hopefully accu
 - [x] drawing app
 - [x] model serialization with Serde
 - [x] momentum optimizer
-- [ ] improve model accuracy / generalization
-- [ ] multithreaded data training
+- [x] improve model accuracy / generalization
 - [x] rework matrix library trait abstractions
 - [x] create generic Data trait for feeding network data
 
