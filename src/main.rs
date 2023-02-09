@@ -16,8 +16,7 @@ pub mod draw;
 pub mod activation;
 pub mod cost;
 
-// TODO: add interface for fixing model save path if ot fails
-// so you don't lose data
+// TODO: add interface for fixing model save path if ot fails so you don't lose data
 
 fn main() {
     draw::run_sketch();

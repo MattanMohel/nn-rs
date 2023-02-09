@@ -1,4 +1,5 @@
 use nannou::prelude::*;
+use num::integer::Roots;
 use crate::data::dataset::Dataset;
 use crate::data::mnist::Reader;
 use crate::network::Net;
@@ -7,10 +8,10 @@ use crate::matrix::{
     MatBase
 };
 
-const WIDTH:  u32 = 28;
-const HEIGHT: u32 = 28;
-const BUFFER: u32 = 10;
-const PX: u32 = 28;
+const WIDTH:  isize = 28;
+const HEIGHT: isize = 28;
+const BUFFER: isize = 10;
+const PX: isize = 28;
 const DRAW_RADIUS: isize = 2;
 const MODEL_PATH: &str = "src/models/test";
 
@@ -25,18 +26,15 @@ struct Model {
     l_mouse_pressed: bool,
     r_mouse_pressed: bool,
     draw_radius: isize,
+    last_pos: (isize, isize),
     net: Net<4>,
     out: Mat
 }
 
-fn to_pixel_xy(x: f32, y: f32) -> (f32, f32) {
-    let x = x + (PX*BUFFER / 2) as f32;
-
-    let x_p = (784.0 / 2.0 + x) / 28.0;
-    let x_p = x_p.floor();
-
-    let y_p = (784.0 / 2.0 + y) / 28.0;
-    let y_p = y_p.floor();
+fn to_pixel_xy(x: f32, y: f32) -> (isize, isize) {
+    let x = PX*BUFFER / 2 + x as isize;
+    let x_p = (WIDTH*HEIGHT / 2 + x) / PX;
+    let y_p = (WIDTH*HEIGHT / 2 + y as isize) / PX;
 
     (x_p, y_p)
 }
@@ -44,7 +42,7 @@ fn to_pixel_xy(x: f32, y: f32) -> (f32, f32) {
 fn model(app: &App) -> Model {
     app.new_window()
         .title("Sketchbook")
-        .size(PX*(WIDTH + BUFFER), PX*HEIGHT)
+        .size((PX*(WIDTH + BUFFER)) as u32, (PX*HEIGHT) as u32)
         .resizable(false)
         .view(view)
         .mouse_pressed(draw_press)
@@ -54,10 +52,11 @@ fn model(app: &App) -> Model {
         .unwrap();
 
     Model {
-        buf: [0.0; 784],
+        buf: [0.0; (WIDTH*HEIGHT) as usize],
         l_mouse_pressed: false,
         r_mouse_pressed: false,
         draw_radius: DRAW_RADIUS,
+        last_pos: (-1, -1),
         net: Net::from_file(MODEL_PATH).unwrap(),
         out: Mat::zeros((10, 1))
     }
@@ -65,30 +64,28 @@ fn model(app: &App) -> Model {
 
 fn update(app: &App, model: &mut Model, _update: Update) {
     if !(model.l_mouse_pressed || model.r_mouse_pressed) {
-        return;
+        return
     }
     
     let (x, y) = to_pixel_xy(app.mouse.x, app.mouse.y);
-    if x >= (WIDTH + BUFFER) as f32 || x < 0.0 || y >= HEIGHT as f32 || y < 0.0 {
-        return;
+    
+    if model.last_pos == (x, y) {
+        return
     }
+
+    model.last_pos = (x, y);
 
     for i in -model.draw_radius..model.draw_radius {
         for j in -model.draw_radius..model.draw_radius {
-            let i = i as f32;
-            let j = j as f32;
+            if let Some(pixel) = model.buf.get_mut((WIDTH*HEIGHT-PX*(y + i) + x + j) as usize) {
+                let dist = f32::hypot(i as f32, j as f32);
 
-            let dist = (i.powi(2) + j.powi(2)).sqrt();
+                if dist >= model.draw_radius as f32 {
+                    continue
+                }
 
-            if dist >= model.draw_radius as f32 {
-                continue;
-            }
-
-            let cell = model.buf.get_mut((784.0-28.0*(y + i) + (x + j)) as usize);
-
-            if let Some(pixel) = cell {
                 if model.l_mouse_pressed {
-                    *pixel += (1.0 / dist.powi(2) as f32).clamp(0.0, 1.0);
+                    *pixel = (*pixel + 1.0 / dist as f32).clamp(0.0, 1.0);
                 }
                 else {
                     *pixel = 0.0;
@@ -97,9 +94,8 @@ fn update(app: &App, model: &mut Model, _update: Update) {
         }
     }
 
-    let vec = model.buf.map(|n| n as f32 / 5.0);
-    let mat = Mat::from_vec((784, 1), vec.to_vec());
-    model.out = model.net.predict(&mat);
+    let input = Mat::from_arr(model.buf.map(|n| n as f32));
+    model.out = model.net.predict(&input);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -116,16 +112,26 @@ fn view(app: &App, model: &Model, frame: Frame) {
 
     for (i, (d, p)) in out.iter().enumerate() {
         let s = format!("\"{}\": {:.2}%", d, *p * 100.);
+
+        let font_size;
+
+        if i == 0 {
+            font_size = 40;
+        }
+        else {
+            font_size = 35;
+        }
+
         draw
             .text(&s)
             .color(BLACK)
-            .font_size(25)
-            .x_y(400., 150. - i as f32 * 50.);
+            .font_size(font_size)
+            .x_y(375., 225. - 1.5 * i as f32 * font_size as f32);
     }
 
     for (i, p) in model.buf.iter().enumerate() {
-        let x = (i % 28) as f32;
-        let y = 28.0 - (i / 28) as f32;
+        let x = (i % PX as usize) as f32;
+        let y = (PX - 1 - i as isize / PX) as f32;
 
         if *p > 0.0 {
             let r = Rect::from_w_h(28.0, 28.0)
@@ -161,36 +167,16 @@ fn draw_release(_: &App, model: &mut Model, mouse: MouseButton) {
 
 fn key_press(_: &App, model: &mut Model, key: Key) {
     match key {
-        Key::R => model.buf = [0.0; 784],
-        Key::Up => model.draw_radius += 1,
+        Key::R => model.buf = [0.0; (WIDTH*HEIGHT) as usize],
+        Key::Up => {
+            if model.draw_radius <= 5 {
+                model.draw_radius += 1
+            }
+        }
         Key::Down => {
             if model.draw_radius > 1 {
                 model.draw_radius -= 1
             }
-        }
-        Key::P => {
-            let buf = model.buf.map(|n| n as f32);
-            let buf = Mat::from_vec((784, 1), buf.to_vec());
-
-            for (i, byte) in buf.data().iter().enumerate() {
-                if *byte > 0.8 {
-                    print!("■ ")
-                } else if *byte > 0.4 {
-                    print!("▧ ")
-                } else if *byte > 0.0 {
-                    print!("□ ")
-                } else {
-                    print!("- ")
-                };
-    
-                if i % 28 == 0 {
-                    println!()
-                } 
-            }
-
-            let digit = model.net.predict(&buf).max_index().0;
-
-            println!("predicted digit: {}", digit);
         }
         _ => ()
     }
