@@ -1,8 +1,6 @@
 use nannou::prelude::*;
-use num::integer::Roots;
-use crate::data::dataset::Dataset;
-use crate::data::mnist::Reader;
-use crate::network::Net;
+use crate::data::mnist::one_hot;
+use crate::network::FeedForward;
 use crate::matrix::{
     Mat, 
     MatBase
@@ -13,7 +11,8 @@ const HEIGHT: isize = 28;
 const BUFFER: isize = 10;
 const PX: isize = 28;
 const DRAW_RADIUS: isize = 2;
-const MODEL_PATH: &str = "src/models/test";
+const DIGIT_MODEL_PATH: &str = "src/models/test";
+const IMAGE_MODEL_PATH: &str = "src/models/image";
 
 pub fn run_sketch() {
     nannou::app(model)
@@ -27,7 +26,8 @@ struct Model {
     r_mouse_pressed: bool,
     draw_radius: isize,
     last_pos: (isize, isize),
-    net: Net<4>,
+    digit_model: FeedForward<5>,
+    image_model: FeedForward<4>,
     out: Mat
 }
 
@@ -57,12 +57,16 @@ fn model(app: &App) -> Model {
         r_mouse_pressed: false,
         draw_radius: DRAW_RADIUS,
         last_pos: (-1, -1),
-        net: Net::from_file(MODEL_PATH).unwrap(),
+        digit_model: FeedForward::load_model(DIGIT_MODEL_PATH).unwrap(),
+        image_model: FeedForward::load_model(IMAGE_MODEL_PATH).unwrap(),
         out: Mat::zeros((10, 1))
     }
 }
 
 fn update(app: &App, model: &mut Model, _update: Update) {
+    let input = Mat::from_arr(model.buf.map(|n| n as f32));
+    model.out = model.digit_model.predict(&input);
+
     if !(model.l_mouse_pressed || model.r_mouse_pressed) {
         return
     }
@@ -93,9 +97,6 @@ fn update(app: &App, model: &mut Model, _update: Update) {
             }
         }
     }
-
-    let input = Mat::from_arr(model.buf.map(|n| n as f32));
-    model.out = model.net.predict(&input);
 }
 
 fn view(app: &App, model: &Model, frame: Frame) {
@@ -167,7 +168,16 @@ fn draw_release(_: &App, model: &mut Model, mouse: MouseButton) {
 
 fn key_press(_: &App, model: &mut Model, key: Key) {
     match key {
-        Key::R => model.buf = [0.0; (WIDTH*HEIGHT) as usize],
+        Key::Return => model.buf = [0.0; (WIDTH*HEIGHT) as usize],
+        _ if key as usize <= 9 => {
+            let digit = (key as usize + 1) % 10;
+            model.buf = model.image_model
+                .predict(&one_hot(digit))
+                .data()
+                .clone()
+                .try_into()
+                .unwrap()
+        }
         Key::Up => {
             if model.draw_radius <= 5 {
                 model.draw_radius += 1

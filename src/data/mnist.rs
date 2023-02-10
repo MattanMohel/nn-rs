@@ -1,13 +1,7 @@
 use std::{path::PathBuf, fs};
 use serde::{Serialize, Deserialize};
-
 use crate::matrix::{Mat, MatBase};
-
 use super::dataset::Dataset;
-// use crate::matrix::{
-//     MatBase,
-//     Mat
-// };
 
 /// MNIST Data Formatting Information
 ///
@@ -46,7 +40,7 @@ const IMAGE_DATA_OFFSET: usize =  16;
 const BYTES_PER_IMAGE: usize =   784;
 const BYTES_PER_AXIS: usize =     28;
 
-fn one_hot(hot: usize) -> Mat {
+pub fn one_hot(hot: usize) -> Mat {
     let mut mat = Mat::zeros((10, 1));
     mat[(hot, 0)] = 1.0;
     mat

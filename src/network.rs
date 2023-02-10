@@ -1,6 +1,6 @@
 use rand::seq::SliceRandom;
 use serde::{Serialize, Deserialize};
-use std::{time::Instant, ops::{AddAssign}, fs::File, io::Write, io::Error, path::PathBuf};
+use std::{time::Instant, fs::File, io::Error};
 use crate::matrix::{Mat, MatBase};
 use crate::{
     activation::Act, 
@@ -120,13 +120,13 @@ impl Layer {
 
 /// Neural Network
 #[derive(Serialize, Deserialize)]
-pub struct Net<const L: usize> {
+pub struct FeedForward<const L: usize> {
     params: Params<L>,
     layers: Vec<Layer>,
     acts:   Vec<Mat>
 }
 
-impl<const L: usize> From<Params<L>> for Net<L> {
+impl<const L: usize> From<Params<L>> for FeedForward<L> {
     fn from(params: Params<L>) -> Self {
         let acts = params.form
             .iter()
@@ -146,14 +146,14 @@ impl<const L: usize> From<Params<L>> for Net<L> {
     }
 }
 
-impl<const L: usize> Net<L> {
+impl<const L: usize> FeedForward<L> {
     /// Creates a new `Net` builder
     pub fn new(form: [usize; L]) -> Params<L> {
         Params::from(form)
     }
 
     /// Saves the current model to `path`
-    pub fn save(&self) -> Result<(), Error> {
+    pub fn save_model(&self) -> Result<(), Error> {
         let json = serde_json::to_string(&self)?;
         let path = std::env::current_dir()?.join(&self.params.save_path);
         File::create(&path)?;
@@ -162,7 +162,7 @@ impl<const L: usize> Net<L> {
     }
 
     /// Reads a model from `path`
-    pub fn from_file(path: &str) -> Result<Self, Error> {
+    pub fn load_model(path: &str) -> Result<Self, Error> {
         let path = std::env::current_dir()?.join(&path);
         let src = std::fs::read_to_string(&path)?;
         serde_json::from_str(&src).map_err(|err| err.into())
@@ -237,10 +237,6 @@ impl<const L: usize> Net<L> {
     /// ## Note
     /// `Self` caches the propagated activations
     pub fn forward_pass(&mut self, x: &Mat) {
-        for layer in self.layers.iter_mut() {
-            layer.clear_prop();
-        }
-
         self.acts[0] = x.clone();
 
         for l in 0..L-1 {

@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
-
-use crate::{activation::Act, cost::Cost, network::Net, weight_init::Weight};
+use crate::{activation::Act, cost::Cost, network::FeedForward, weight_init::Weight};
 
 /// Default learn rate
 const LEARN_RATE: f32 = 0.01;
@@ -58,8 +57,8 @@ impl<const L: usize> Params<L> {
     }
 
     /// Build `Net` 
-    pub fn build(&self) -> Net<L> {
-        Net::from(self.clone())
+    pub fn build(&self) -> FeedForward<L> {
+        FeedForward::from(self.clone())
     }
 
     /// Set model `learn_rate`

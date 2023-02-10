@@ -1,15 +1,6 @@
-use std::ops::{
-    Index, 
-    IndexMut
-};
-use rand::{
-    distributions::Uniform, 
-    prelude::Distribution
-};
-use serde::{
-    Serialize, 
-    Deserialize
-};
+use std::ops::{Index, IndexMut};
+use rand::{distributions::Uniform, prelude::Distribution};
+use serde::{Serialize, Deserialize};
 use matrixmultiply::sgemm;
 
 #[derive(Clone, Serialize, Deserialize)]
